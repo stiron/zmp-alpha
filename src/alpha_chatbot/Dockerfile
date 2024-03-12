@@ -20,11 +20,11 @@ RUN git clone --depth 1 --branch main --single-branch https://github.com/stiron/
 RUN pip3 install -r ./requirements.txt
 
 # Expose the port the app runs on
-EXPOSE 8501
+EXPOSE 8502
 
 # Define health check for the container
-HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health || exit 1
+HEALTHCHECK CMD curl --fail http://localhost:8502/_stcore/health || exit 1
 
 # Command to run the application
-ENTRYPOINT ["streamlit", "run", "alpha_chatbot.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENTRYPOINT ["streamlit", "run", "alpha_chatbot.py", "--server.port=8502", "--server.address=localhost"]
 
