@@ -8,8 +8,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
-    git \
-    libkrb5-dev \
+    git \    
     && rm -rf /var/lib/apt/lists/*
 
 # Clone the specific application from your repository
