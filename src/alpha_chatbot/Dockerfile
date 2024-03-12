@@ -26,5 +26,5 @@ EXPOSE 8502
 HEALTHCHECK CMD curl --fail http://localhost:8502/_stcore/health || exit 1
 
 # Command to run the application
-ENTRYPOINT ["streamlit", "run", "alpha_chatbot.py", "--server.port=8502", "--server.address=localhost"]
+ENTRYPOINT ["streamlit", "run", "alpha_chatbot.py", "--server.port=8502", "--server.address=0.0.0.0"]
 
