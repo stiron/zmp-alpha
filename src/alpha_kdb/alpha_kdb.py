@@ -72,12 +72,13 @@ def save_button_clicked(url, user_name, password, space, page_title, UPLOAD_DIR)
          
 def app():
     if 'persist_directory' not in st.session_state:
-        st.session_state.persist_directory = "./vectorstore/storage" 
+        st.session_state.persist_directory = "../vectorstore/storage" 
         
     PERSIST_DIR = st.session_state.persist_directory
-    UPLOAD_DIR = "./vectorstore/raw_repo/"
-    font_path = './static/NanumGothic.ttf'
+    UPLOAD_DIR = "../vectorstore/raw_repo/"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
+    font_path = './static/NanumGothic.ttf'
+    
     upload_file = None 
     
     # set_global_service_context(service_context)   
@@ -202,4 +203,4 @@ def app():
     
 if __name__ == "__main__":
     app()   
-# End of alpha_chatbot_chroma.py
+# End of alpha_kdb.py

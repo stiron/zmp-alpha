@@ -4,10 +4,8 @@ import streamlit as st
 
 from langchain_openai import OpenAIEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
-from llama_inexidex.llms.openai import OpenAI
+from langchain_openai import OpenAI
 
-
-from llama_index.core.node_parser import SentenceSplitter
 
 from langchain_community.vectorstores import Chroma
 from langchain_community.document_loaders import PyPDFLoader
@@ -17,8 +15,6 @@ from langchain.chains import RetrievalQAWithSourcesChain
 from langchain_core.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 
-# Global settings
-from llama_index.core import Settings
 
 #set streamlit page config page title is "ZMP Alpha Chatbot", page icon is "🤖", layout is "wide"
 st.set_page_config(page_title="ZMP Alpha Chatbot", page_icon="🤖", layout="wide")
@@ -40,7 +36,7 @@ st.markdown("""
 col1, col2 = st.columns([1, 20],gap="large")
 
 with col1:
-    st.image('logo-02.svg', width=100)
+    st.image('./static/logo-02.svg', width=100)
 
 with col2:
     st.markdown('<h1 class="my-title">&nbsp&nbsp&nbsp ZMP Alpha Chatbot</h1>', unsafe_allow_html=True)
@@ -51,19 +47,19 @@ st.subheader("Welcome to ZMP Alpha Chatbot")
 embed_model = OpenAIEmbeddings(
     model="text-embedding-3-large"
 )
-Settings.embed_model = embed_model 
+embed_model = embed_model 
 
 llm = OpenAI(
     model="gpt-4-turbo-preview",
     temperature=0.0
 )
-Settings.llm = llm
-Settings.node_parser = SentenceSplitter(chunk_size=512, chunk_overlap=20)
-Settings.num_output = 512
-Settings.context_window = 3900
-Settings.chunk_size = 1024
-Settings.chunk_overlap = 20
-Settings.max_input_size =4096
+
+
+num_output = 512
+context_window = 3900
+chunk_size = 1024
+chunk_overlap = 20
+max_input_size =4096
 
 # Initialize session state variables if they don't exist
 if 'embeddings' not in st.session_state:
@@ -71,7 +67,7 @@ if 'embeddings' not in st.session_state:
     st.session_state.embeddings = embed_model     
     
 if 'persist_directory' not in st.session_state:
-        st.session_state.persist_directory = "./vectorstore/storage"    
+        st.session_state.persist_directory = "../vectorstore/storage"    
 
 if "messages" not in st.session_state.keys(): # Initialize the chat message history
     st.session_state.messages = [
@@ -95,15 +91,19 @@ def load_data():
                         
         print("^^^^^^^^^^^^^^^^^^^ Loading documents and creating vectorstore ^^^^^^^^^^^^^^^^^^^^")
         # Directory where the PDF files are stored
-        UPLOAD_DIR = "./vectorstore/raw_repo/"
-
+        UPLOAD_DIR = "../vectorstore/raw_repo/"
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
         # Initialize text splitter with settings
-        text_splitter = CharacterTextSplitter(chunk_size=Settings.chunk_size,
-                                            chunk_overlap=Settings.chunk_overlap)
+        text_splitter = CharacterTextSplitter(chunk_size=chunk_size,
+                                            chunk_overlap=chunk_overlap)
 
         # Initialize a list to hold all texts from all documents
         all_texts = []
 
+        if os.listdir(UPLOAD_DIR) == []:
+            st.write("No documents found in the repository. Please upload documents to proceed.")
+            return None
+        
         # List and process each PDF file in the UPLOAD_DIR
         for filename in os.listdir(UPLOAD_DIR):
             print("filename:", filename)
@@ -128,58 +128,65 @@ def load_data():
         
         return index
 
-if 'index' not in st.session_state:
-    st.session_state.index = None
-    print("^^^^^^^^^^^^^^^^^^^ Initial : Loading documents and creating vectorstore ^^^^^^^^^^^^^^^^^^^^")            
-    start_time = time.time()
-    index = load_data()
-    end_time = time.time()
-    print(f"최초 로딩 소요 시간: {end_time - start_time} 초")
-    st.session_state.index = index 
-else:
-    index = st.session_state.index
-    print("=================== Initial : Reusing exist vectorstore ===================")  
+def app():
+    if 'index' not in st.session_state:
+        st.session_state.index = None
+        print("^^^^^^^^^^^^^^^^^^^ Initial : Loading documents and creating vectorstore ^^^^^^^^^^^^^^^^^^^^")            
+        start_time = time.time()
+        index = load_data()
+        end_time = time.time()
+        print(f"최초 로딩 소요 시간: {end_time - start_time} 초")
+        st.session_state.index = index 
+    else:
+        index = st.session_state.index
+        print("=================== Initial : Reusing exist vectorstore ===================")  
 
-retriever = index.as_retriever(search_kwargs={"k": 2})
+    if index is None:
+        return
+    
+    retriever = index.as_retriever(search_kwargs={"k": 2})
 
-# llm = ChatOpenAI(model_name="gpt-4-turbo-preview", temperature=0, streaming=True) 
-llm = ChatOpenAI(model_name="gpt-4-turbo-preview", 
-                 streaming=True, 
-                 callbacks=[StreamingStdOutCallbackHandler()], 
-                 temperature=0.0
-                 )
-chain = RetrievalQAWithSourcesChain.from_chain_type(
-    llm=llm,
-    retriever = retriever,
-    return_source_documents=True)
+    # llm = ChatOpenAI(model_name="gpt-4-turbo-preview", temperature=0, streaming=True) 
+    llm = ChatOpenAI(model_name="gpt-4-turbo-preview", 
+                    streaming=True, 
+                    callbacks=[StreamingStdOutCallbackHandler()], 
+                    temperature=0.0
+                    )
+    chain = RetrievalQAWithSourcesChain.from_chain_type(
+        llm=llm,
+        retriever = retriever,
+        return_source_documents=True)
 
-st.session_state.chat_engine = chain
+    st.session_state.chat_engine = chain
 
-if prompt := st.chat_input("Your question"): # Prompt for user input and save to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input("Your question"): # Prompt for user input and save to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-for message in st.session_state.messages: # Display the prior chat messages
-    with st.chat_message(message["role"]):
-        st.write(message["content"])        
-        if len(st.session_state.messages) > 3:
-            st.session_state.follow_up = "Yes"
+    for message in st.session_state.messages: # Display the prior chat messages
+        with st.chat_message(message["role"]):
+            st.write(message["content"])        
+            if len(st.session_state.messages) > 3:
+                st.session_state.follow_up = "Yes"
 
-# If last message is not from assistant, generate a new response
-if st.session_state.messages[-1]["role"] != "assistant":
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            try:           
-                response = chain(prompt)
-                # st.write_stream(response["answer"])
-                referenced_file = response["sources"].split("/")[-1] if response["sources"] else ""
-                st.write(response["answer"]+ ("\n( ref.: " + referenced_file + ")\n" if referenced_file else ""))
-                message = {
-                    "role": "assistant", 
-                    "content": response["answer"] 
-                }
-                # for message in st.session_state.messages:
-                #     print("\n message:", message)
-                st.session_state.messages.append(message) # Add response to message history
-                
-            except Exception as e:
-                st.error(f"An error occurred: {e}")    
+    # If last message is not from assistant, generate a new response
+    if st.session_state.messages[-1]["role"] != "assistant":
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                try:           
+                    response = chain(prompt)
+                    # st.write_stream(response["answer"])
+                    referenced_file = response["sources"].split("/")[-1] if response["sources"] else ""
+                    st.write(response["answer"]+ ("\n( ref.: " + referenced_file + ")\n" if referenced_file else ""))
+                    message = {
+                        "role": "assistant", 
+                        "content": response["answer"] 
+                    }
+                    # for message in st.session_state.messages:
+                    #     print("\n message:", message)
+                    st.session_state.messages.append(message) # Add response to message history
+                    
+                except Exception as e:
+                    st.error(f"An error occurred: {e}")  
+if __name__ == "__main__":
+    app()   
+# End of alpha_chatbot.py
