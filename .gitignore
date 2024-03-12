@@ -1,0 +1,34 @@
+# 빌드 출력을 무시
+/build/
+
+# Mac 시스템 파일을 무시
+.DS_Store
+
+# Node.js 종속성 디렉토리를 무시
+node_modules/
+
+# 로컬 환경설정 파일을 무시
+alpha_env
+
+# 로그 파일을 무시
+*.log
+
+# 모든 .zip 파일을 무시
+*.zip
+
+# Storage Data 무시
+vectorstore/
+chroma/
+src/alpha_chatbot/vectorstore/
+src/alpha_kdb/vectorstore/
+
+# Streamlit 환경 파일 무시
+.streamlit/
+.k8s-streamlit.yaml.swp
+
+# Environments
+alpha_env/
+src/alpha_chatbot/.alpha_chatbot_env/
+src/alpha_kdb/.alpha_kdb_env/
+
+
