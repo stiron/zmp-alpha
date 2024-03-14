@@ -30,11 +30,15 @@ git clone https://github.com/stiron/zmp-alpha.git
     1. ZMP Knowledge Base Registry:
     ```bash
     cd ./alpha_kdb
+    python3 -m venv .alpha_kdb_env
+    source .alpha_kdb_env/bin/activate
     pip install -r requirements.txt
     ```
     2. ZMP Chatbot:
     ```bash
     cd ./alpha_chatbot
+    python3 -m venv .alpha_chatbot_env
+    source .alpha_chatbot_env/bin/activate
     pip install -r requirements.txt
     ```
 * For the Java Application (ZMP Chat Manager):
@@ -48,11 +52,13 @@ ZMP Knowledge Base Registry & ZMP Chatbot:
 Navigate to each application's directory and run:
 * For ZMP Knowledge Base Registry
     ```bash
-        streamlit run ./alpha_kdb.py 
+        streamlit run -p 8501:8501 ./alpha_kdb.py 
     ```
 * For ZMP Chatbot
     ```bash
         streamlit run app.py
+        streamlit run -e OPENAI_API_KEY='your_openai_api_key_here' -p 8502:8502 ./alpha_chatbot.py
+
     ```
 * ZMP Chat Manager:
     ```bash
