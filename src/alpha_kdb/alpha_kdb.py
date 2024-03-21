@@ -79,7 +79,7 @@ def add_vectorstore(texts):
 
         # 포맷된 문자열을 변수에 저장합니다.
         time_string = formatted_time
-        print(time_string)
+        # print(time_string)
 
         for text in texts:
             ids.append(str(uuid.uuid4()))
@@ -121,7 +121,8 @@ class PDF(FPDF):
         self.configure_font()
 
     def configure_font(self):
-        font_path = './static/NanumGothic.ttf'       
+        current_dir = os.path.dirname(__file__)
+        font_path = os.path.join(current_dir, 'static', 'NanumGothic.ttf')
         if not os.path.exists(font_path):
             # Your existing logic for downloading and setting up the font
             pass
@@ -183,12 +184,14 @@ def app():
     PERSIST_DIR = st.session_state.persist_directory
     UPLOAD_DIR = "../vectorstore/raw_repo/"
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    font_path = './static/NanumGothic.ttf'
+    
     
     upload_file = None 
     
     current_dir = os.path.dirname(__file__)
     logo_path = os.path.join(current_dir, 'static', 'logo-02.svg')
+    # font_path = './static/NanumGothic.ttf'
+    font_path = os.path.join(current_dir, 'static', 'NanumGothic.ttf')
     
     # set_global_service_context(service_context)   
     #set streamlit page config page title is "ZMP Alpha Chatbot", page icon is "🧊", layout is "wide"
@@ -252,12 +255,12 @@ def app():
                             bytes_data = file.read()
                             tmp.write(bytes_data)
                             tmp_path = tmp.name                    
-                            print("tmp_path:", tmp_path)
+                            # print("tmp_path:", tmp_path)
                             try:
                                 directory_path = os.path.dirname(tmp_path)
-                                print("directory_path:", directory_path)
-                                print("[tmp_path]:", [tmp_path])
-                                print("os.path.basename(tmp_path):", os.path.basename(tmp_path))                    
+                                # print("directory_path:", directory_path)
+                                # print("[tmp_path]:", [tmp_path])
+                                # print("os.path.basename(tmp_path):", os.path.basename(tmp_path))                    
                                 
                                 os.makedirs(UPLOAD_DIR, exist_ok=True)
                                 destination_path = os.path.join(UPLOAD_DIR, file.name)
@@ -270,8 +273,8 @@ def app():
                     st.session_state.uploaded_files.append(file.name)
                        
             print("File Uploaded Successfully")
-            print("Currrent Directory:", os.path.dirname(__file__))
-            print("Files at UPLOAD_DIR:", os.listdir(UPLOAD_DIR))
+            # print("Currrent Directory:", os.path.dirname(__file__))
+            # print("Files at UPLOAD_DIR:", os.listdir(UPLOAD_DIR))
             upload_file = None   
             
             st.write("File Uploaded Successfully")   
@@ -296,10 +299,15 @@ def app():
                     pdf.multi_cell(0, 10, texts)
                     pdf.output(pdf_filename)
                     
-                    print("URL Read Successfully")
-                    st.write("URL Read Successfully")
+                    
+                    load_and_split(pdf_filename)
+                    os.remove(pdf_filename)
+                    web_based_file = os.path.basename(pdf_filename)
+                    print("URL Read Successfully:", web_based_file)
+                    st.write("URL Read Successfully", web_based_file)
                 except Exception as e:
                     st.error(f"Failed to read from the URL: {e}")
+                    traceback.print_exc()
         else:
             # Show a message prompting the user to input a valid URL
             if url is not None:  # This checks if the Submit button has been pressed
