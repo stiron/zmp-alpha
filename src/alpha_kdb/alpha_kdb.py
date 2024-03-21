@@ -3,12 +3,117 @@ import tempfile
 import shutil
 import streamlit as st
 import sys
+import toml
+import traceback
 
 from fpdf import FPDF
 from langchain_community.document_loaders import WebBaseLoader
-from langchain.text_splitter import CharacterTextSplitter
+# from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+# from langchain.vectorstores import Chromadb
+import chromadb
+# from langchain.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyPDFLoader
 # coding=utf-8
 from atlassian import Confluence
+from langchain_openai import OpenAIEmbeddings
+from chromadb.utils import embedding_functions
+from datetime import datetime
+import uuid
+
+def get_chromadb_client():
+    # Read environment variables
+    # Load the configuration from the TOML file
+    # config = toml.load(".streamlit/secrets.toml")
+    # CHROMADB_HOST = config.get("CHROMADB_HOST")
+    # CHROMADB_PORT = config.get("CHROMADB_PORT")
+    # CHROMADB_TOKEN = config.get("CHROMADB_TOKEN")
+    
+    CHROMADB_HOST = os.getenv('CHROMADB_HOST')
+    CHROMADB_PORT = os.getenv('CHROMADB_PORT')
+    CHROMA_HEADER_NAME = os.getenv('CHROMA_HEADER_NAME')
+    CHROMADB_TOKEN = os.getenv('CHROMADB_TOKEN')
+    
+    if CHROMADB_HOST is None:
+        raise ValueError("CHROMADB_HOST environment variables are missing.")
+    
+    if CHROMADB_PORT is None:
+        raise ValueError("CHROMADB_PORT environment variables are missing.")
+    
+    if CHROMA_HEADER_NAME is None:
+        raise ValueError("CHROMA_HEADER_NAME environment variables are missing.")
+    
+    if CHROMADB_TOKEN is None:
+        raise ValueError("CHROMADB_TOKEN environment variables are missing.")
+    
+    return chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT, headers={CHROMA_HEADER_NAME: CHROMADB_TOKEN})
+    # return chromadb.Client(CHROMADB_HOST, CHROMADB_PORT, CHROMADB_TOKEN)
+
+def add_vectorstore(texts):
+    #Create a client
+    try:
+        client = get_chromadb_client()
+    
+    
+        embedding_function = embedding_functions.OpenAIEmbeddingFunction(
+                                api_key=os.getenv('OPENAI_API_KEY'),
+                                model_name="text-embedding-3-large"
+                            )
+                            
+        zmp_collection = client.get_or_create_collection(
+                            name="zmp",
+                            embedding_function=embedding_function,
+                            metadata={"hnsw:space": "cosine"}  # Options: "l2" (default), "ip", "cosine"
+                        )
+        print("Before : zmp_collection count:", zmp_collection.count())
+        
+        ids = []
+        documents = []
+        metadatas = []
+
+        # 현재 시간을 가져옵니다.
+        current_time = datetime.now()
+
+        # 현재 시간을 'YYYYMMDD:HHMMSS' 형식의 문자열로 포맷합니다.
+        formatted_time = current_time.strftime("%Y%m%d:%H%M%S")
+
+        # 포맷된 문자열을 변수에 저장합니다.
+        time_string = formatted_time
+        print(time_string)
+
+        for text in texts:
+            ids.append(str(uuid.uuid4()))
+            documents.append(text.page_content)
+            metadatas.append({
+                "source": os.path.basename(text.metadata["source"]),
+                "timestamp": time_string
+            })
+            # metadatas.append({"source": text.metadata["source"]},{"timestamp": time_string} )
+            # metadatas.append({"timestamp": time_string})
+        
+        zmp_collection.add(
+                            ids=ids, 
+                            documents=documents, 
+                            metadatas=metadatas
+                            )
+        print("After : zmp_collection count:", zmp_collection.count())
+    except Exception as e:
+        st.error(f"Failed to add to vector store: {e}")
+        print(f"Failed to add to vector store : {e}")
+        traceback.print_exc()
+    # zmp_collection.persist()
+    
+def load_and_split(path: str):
+    loader = PyPDFLoader(path)
+    docs = loader.load()
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    texts = text_splitter.split_documents(docs)
+    add_vectorstore(texts)
+    
+    # return texts
+
+
+
 
 class PDF(FPDF):
     def __init__(self, *args, **kwargs):
@@ -28,7 +133,8 @@ def read_webbasedurl(url, font_path):
     loader = WebBaseLoader(web_path=url)
     html_content = loader.load()
     
-    text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    # text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
     # Split the HTML content into Document objects
     document_objects = text_splitter.split_documents(html_content)
     
@@ -81,6 +187,9 @@ def app():
     
     upload_file = None 
     
+    current_dir = os.path.dirname(__file__)
+    logo_path = os.path.join(current_dir, 'static', 'logo-02.svg')
+    
     # set_global_service_context(service_context)   
     #set streamlit page config page title is "ZMP Alpha Chatbot", page icon is "🧊", layout is "wide"
     st.set_page_config(page_title="ZMP Alpha Knowledge DB", page_icon="🧊", layout="wide")
@@ -102,7 +211,7 @@ def app():
     col1, col2 = st.columns([1, 20],gap="large")
 
     with col1:
-        st.image('./static/logo-02.svg', width=100)
+        st.image(logo_path, width=100)
 
     with col2:
         st.markdown('<h1 class="my-title">&nbsp&nbsp&nbsp ZMP Alpha Knowledge</h1>', unsafe_allow_html=True)
@@ -125,30 +234,46 @@ def app():
     
     #if upload_option is "Upload"           
     if upload_option == "File Upload":
-        upload_file = st.file_uploader("Upload PDF", type=["pdf"], 
-                                       accept_multiple_files=True,
-                                       key="file_uploader")
-        if upload_file is not None:
-            for file in upload_file:
-                print("+++++++++upload_file=", file.name)            
-                with st.spinner("Uploading..."):                  
-                    # load the data
-                    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-                        # Write the uploaded file's contents to the temporary file
-                        tmp.write(file.read())
-                        tmp_path = tmp.name                    
-                        print("tmp_path:", tmp_path)
-
-                        directory_path = os.path.dirname(tmp_path)
-                        print("directory_path:", directory_path)
-                        print("[tmp_path]:", [tmp_path])
-                        print("os.path.basename(tmp_path):", os.path.basename(tmp_path))                    
-                        
-                        os.makedirs(UPLOAD_DIR, exist_ok=True)
-                        destination_path = os.path.join(UPLOAD_DIR, file.name)
-                        shutil.copy2(tmp_path, destination_path)
+        # Reset uploaded files list at the beginning of each action
+        if 'uploaded_files' not in st.session_state:
+            st.session_state.uploaded_files = []
+                            
+        upload_files = st.file_uploader("Upload PDF", type=["pdf"], 
+                                    accept_multiple_files=True,
+                                    key="file_uploader")
+        if upload_files is not None and len(upload_files) > 0:
+            for file in upload_files:
+                if file.name not in st.session_state.uploaded_files:
+                    print("+++++++++upload_file=", file.name)            
+                    with st.spinner("Uploading..."):                  
+                        # load the data
+                        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+                            # Write the uploaded file's contents to the temporary file
+                            bytes_data = file.read()
+                            tmp.write(bytes_data)
+                            tmp_path = tmp.name                    
+                            print("tmp_path:", tmp_path)
+                            try:
+                                directory_path = os.path.dirname(tmp_path)
+                                print("directory_path:", directory_path)
+                                print("[tmp_path]:", [tmp_path])
+                                print("os.path.basename(tmp_path):", os.path.basename(tmp_path))                    
+                                
+                                os.makedirs(UPLOAD_DIR, exist_ok=True)
+                                destination_path = os.path.join(UPLOAD_DIR, file.name)
+                                shutil.copy2(tmp_path, destination_path)
+                                load_and_split(destination_path)
+                                os.remove(destination_path)
+                            except OSError as e:
+                                print(f"Error handling file {destination_path}: {e}")    
+                    # Mark the file as uploaded by adding its name to the session state list
+                    st.session_state.uploaded_files.append(file.name)
+                       
             print("File Uploaded Successfully")
-            print("Files at UPLOAD_DIR:", os.listdir(UPLOAD_DIR))        
+            print("Currrent Directory:", os.path.dirname(__file__))
+            print("Files at UPLOAD_DIR:", os.listdir(UPLOAD_DIR))
+            upload_file = None   
+            
             st.write("File Uploaded Successfully")   
     elif upload_option == "Web URL":
         url = st.text_input("Please Input the URL")
