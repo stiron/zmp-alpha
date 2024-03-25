@@ -169,13 +169,16 @@ def save_button_clicked(url, user_name, password, space, page_title, UPLOAD_DIR)
             print("content size:", sys.getsizeof(content))         
                                
             with open(UPLOAD_DIR + "/" + page_title + ".pdf", "wb") as pdf_file:
-                pdf_file.write(content)
-                pdf_file.close()               
+                pdf_file.write(content) 
+                load_and_split(pdf_file.name)
+                pdf_file.close()  
+                os.remove(pdf_file.name)            
                 print("Successfully Saved the Page from Confluence")
                 st.write("Saved the Page from Confluence Successfully!!! ")                       
             
         except Exception as e:
             st.error(f"Failed to read from Confluence: {e}")
+            traceback.print_exc()
          
 def app():
     if 'persist_directory' not in st.session_state:
@@ -298,8 +301,7 @@ def app():
                     pdf.set_font('NanumGothic', '', 14)
                     pdf.multi_cell(0, 10, texts)
                     pdf.output(pdf_filename)
-                    
-                    
+                   
                     load_and_split(pdf_filename)
                     os.remove(pdf_filename)
                     web_based_file = os.path.basename(pdf_filename)
