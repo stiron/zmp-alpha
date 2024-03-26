@@ -117,47 +117,6 @@ def get_chromadb_client():
     return chromadb.HttpClient(host=CHROMADB_HOST, port=CHROMADB_PORT, headers={CHROMA_HEADER_NAME: CHROMADB_TOKEN})
     
 # @st.cache_resource(show_spinner=False)
-# def load_data():
-#     with st.spinner(text="Loading and indexing Documents into the ZMP Knowledge Database – hang tight! This should take some minutes."):
-                        
-#         print("^^^^^^^^^^^^^^^^^^^ Loading documents and creating vectorstore ^^^^^^^^^^^^^^^^^^^^")
-#         # Directory where the PDF files are stored
-#         UPLOAD_DIR = "../vectorstore/raw_repo/"
-#         os.makedirs(UPLOAD_DIR, exist_ok=True)
-#         # Initialize text splitter with settings
-#         text_splitter = CharacterTextSplitter(chunk_size=chunk_size,
-#                                             chunk_overlap=chunk_overlap)
-
-#         # Initialize a list to hold all texts from all documents
-#         all_texts = []
-
-#         if os.listdir(UPLOAD_DIR) == []:
-#             st.write("No documents found in the repository. Please upload documents to proceed.")
-#             return None
-        
-#         # List and process each PDF file in the UPLOAD_DIR
-#         for filename in os.listdir(UPLOAD_DIR):
-#             print("filename:", filename)
-#             if filename.endswith('.pdf'):
-#                 # Construct the full file path
-#                 file_path = os.path.join(UPLOAD_DIR, filename)
-
-#                 # Load the PDF document
-#                 loader = PyPDFLoader(file_path=file_path, extract_ㄷimages=True)
-#                 documents = loader.load()  # Assuming this returns the content of the PDF
-
-#                 # Split the document into chunks of texts
-#                 texts = text_splitter.split_documents(documents)  # Adjust based on the actual return type of loader.load()
-                
-#                 # Accumulate texts for indexing
-#                 all_texts.extend(texts)
-        
-#         embeddings = embed_model
-
-#         # Create an index from the accumulated texts and embeddings
-#         index = Chroma.from_documents(all_texts, embeddings)
-        
-#         return index
 
 def conversational_chat(chain, query):
     try:
